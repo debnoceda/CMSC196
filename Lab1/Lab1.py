@@ -3,15 +3,12 @@ import pickle
 import netifaces
 
 def get_mac_address():
-    interfaces = netifaces.interfaces()
-    for interface in interfaces:
-        try:
-            mac = netifaces.ifaddresses(interface)[netifaces.AF_LINK][0]['addr']
-            if mac:
-                return mac
-        except (KeyError, IndexError):
-            continue
-    return "00:00:00:00:00:00"
+    try:
+        interface = netifaces.gateways()['default'][netifaces.AF_INET][1]  # Get active network interface
+        mac = netifaces.ifaddresses(interface)[netifaces.AF_LINK][0]['addr']
+        return mac
+    except (KeyError, IndexError, TypeError):
+        return "00:00:00:00:00:00"  # Fallback if MAC address cannot be retrieved
 
 class PhysicalLayer:
     def send(self, data, mac_address):
@@ -127,7 +124,6 @@ class OSISimulator:
 
 if __name__ == "__main__":
     mac_address = get_mac_address()
-    print(f"Using MAC Address: {mac_address}")
     message = input("Enter message to send: ")
     print("\n\n--- Sending Data ---\n")
     osi = OSISimulator()
