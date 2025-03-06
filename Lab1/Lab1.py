@@ -1,11 +1,22 @@
-import json
 import struct
 import pickle
+import netifaces
+
+def get_mac_address():
+    interfaces = netifaces.interfaces()
+    for interface in interfaces:
+        try:
+            mac = netifaces.ifaddresses(interface)[netifaces.AF_LINK][0]['addr']
+            if mac:
+                return mac
+        except (KeyError, IndexError):
+            continue
+    return "00:00:00:00:00:00"
 
 class PhysicalLayer:
-    def send(self, data):
+    def send(self, data, mac_address):
         bits = ''.join(format(byte, '08b') for byte in data)
-        print(f"Physical Layer Sending: {bits}")
+        print(f"Physical Layer Sending: {bits} to {mac_address}")
         return bits.encode()
     
     def receive(self, bits):
@@ -15,13 +26,13 @@ class PhysicalLayer:
         return data
 
 class DataLinkLayer:
-    def send(self, data):
-        frame = b"[MAC_HEADER]" + data + b"[MAC_FOOTER]"
+    def send(self, data, mac_address):
+        frame = b"[MAC_HEADER]" + mac_address.encode() + b"|" + data + b"[MAC_FOOTER]"
         print(f"Data Link Layer Sending: {frame}")
         return frame
     
     def receive(self, frame):
-        data = frame.replace(b"[MAC_HEADER]", b"").replace(b"[MAC_FOOTER]", b"")
+        data = frame.split(b"|")[1].replace(b"[MAC_FOOTER]", b"")
         print(f"Data Link Layer Received: {data}")
         return data
 
@@ -94,14 +105,14 @@ class OSISimulator:
         self.datalink = DataLinkLayer()
         self.physical = PhysicalLayer()
 
-    def send_data(self, data):
+    def send_data(self, data, mac_address):
         data = self.application.send(data)
         data = self.presentation.send(data)
         data = self.session.send(data)
         data = self.transport.send(data)
         data = self.network.send(data)
-        data = self.datalink.send(data)
-        data = self.physical.send(data)
+        data = self.datalink.send(data, mac_address)
+        data = self.physical.send(data, mac_address)
         return data
 
     def receive_data(self, data):
@@ -115,7 +126,11 @@ class OSISimulator:
         return data
 
 if __name__ == "__main__":
+    mac_address = get_mac_address()
+    print(f"Using MAC Address: {mac_address}")
+    message = input("Enter message to send: ")
+    print("\n\n--- Sending Data ---\n")
     osi = OSISimulator()
-    transmitted_data = osi.send_data("Hello, World!")
-    print("\n--- Receiving Data ---\n")
+    transmitted_data = osi.send_data(message, mac_address)
+    print("\n\n--- Receiving Data ---\n")
     osi.receive_data(transmitted_data)
