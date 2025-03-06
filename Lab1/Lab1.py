@@ -4,67 +4,74 @@ import pickle
 
 class PhysicalLayer:
     def send(self, data):
-        bits = ''.join(format(ord(i), '08b') for i in data)
+        bits = ''.join(format(byte, '08b') for byte in data)
         print(f"Physical Layer Sending: {bits}")
-        return bits
+        return bits.encode()
     
     def receive(self, bits):
-        data = ''.join(chr(int(bits[i:i+8], 2)) for i in range(0, len(bits), 8))
+        bits = bits.decode()
+        data = bytes(int(bits[i:i+8], 2) for i in range(0, len(bits), 8))
         print(f"Physical Layer Received: {data}")
         return data
 
 class DataLinkLayer:
     def send(self, data):
-        frame = f"[MAC_HEADER]{data}[MAC_FOOTER]"
+        frame = b"[MAC_HEADER]" + data + b"[MAC_FOOTER]"
         print(f"Data Link Layer Sending: {frame}")
         return frame
     
     def receive(self, frame):
-        data = frame.replace("[MAC_HEADER]", "").replace("[MAC_FOOTER]", "")
+        data = frame.replace(b"[MAC_HEADER]", b"").replace(b"[MAC_FOOTER]", b"")
         print(f"Data Link Layer Received: {data}")
         return data
 
 class NetworkLayer:
     def send(self, data):
-        packet = f"[IP_HEADER]{data}[IP_FOOTER]"
+        if not isinstance(data, bytes):
+            data = data.encode()
+        packet = struct.pack('!I', len(data)) + data
         print(f"Network Layer Sending: {packet}")
         return packet
     
     def receive(self, packet):
-        data = packet.replace("[IP_HEADER]", "").replace("[IP_FOOTER]", "")
+        length = struct.unpack('!I', packet[:4])[0]
+        data = packet[4:4+length]
         print(f"Network Layer Received: {data}")
         return data
 
 class TransportLayer:
     def send(self, data):
-        segment = f"[SEQ_1]{data}[END]"
+        if not isinstance(data, bytes):
+            data = data.encode()
+        segment = struct.pack('!I', len(data)) + data
         print(f"Transport Layer Sending: {segment}")
         return segment
     
     def receive(self, segment):
-        data = segment.replace("[SEQ_1]", "").replace("[END]", "")
+        length = struct.unpack('!I', segment[:4])[0]
+        data = segment[4:4+length]
         print(f"Transport Layer Received: {data}")
         return data
 
 class SessionLayer:
     def send(self, data):
-        session_data = f"[SESSION_START]{data}[SESSION_END]"
+        session_data = b"[SESSION_START]" + data + b"[SESSION_END]"
         print(f"Session Layer Sending: {session_data}")
         return session_data
     
     def receive(self, session_data):
-        data = session_data.replace("[SESSION_START]", "").replace("[SESSION_END]", "")
+        data = session_data.replace(b"[SESSION_START]", b"").replace(b"[SESSION_END]", b"")
         print(f"Session Layer Received: {data}")
         return data
 
 class PresentationLayer:
     def send(self, data):
-        encoded_data = json.dumps({"message": data})
+        encoded_data = pickle.dumps(data)
         print(f"Presentation Layer Sending: {encoded_data}")
         return encoded_data
     
     def receive(self, encoded_data):
-        data = json.loads(encoded_data)["message"]
+        data = pickle.loads(encoded_data)
         print(f"Presentation Layer Received: {data}")
         return data
 
