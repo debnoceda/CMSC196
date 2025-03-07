@@ -3,14 +3,19 @@ import pickle
 import netifaces
 
 def get_mac_address():
-    try:
-        interface = netifaces.gateways()['default'][netifaces.AF_INET][1]  # Get active network interface
-        mac = netifaces.ifaddresses(interface)[netifaces.AF_LINK][0]['addr']
-        return mac
-    except (KeyError, IndexError, TypeError):
-        return "00:00:00:00:00:00"  # Fallback if MAC address cannot be retrieved
+    #retrieve the MAC address of the active network interface
+    interfaces = netifaces.interfaces()
+    for interface in interfaces:
+        try:
+            mac = netifaces.ifaddresses(interface)[netifaces.AF_LINK][0]['addr']
+            if mac:
+                return mac
+        except (KeyError, IndexError):
+            continue
+    return "00:00:00:00:00:00"  # Fallback MAC address
 
 class PhysicalLayer:
+    #converts data to binary bits
     def send(self, data, mac_address):
         bits = ''.join(format(byte, '08b') for byte in data)
         print(f"Physical Layer Sending: {bits} to {mac_address}")
@@ -23,6 +28,7 @@ class PhysicalLayer:
         return data
 
 class DataLinkLayer:
+    #data link layer with mac address
     def send(self, data, mac_address):
         frame = b"[MAC_HEADER]" + mac_address.encode() + b"|" + data + b"[MAC_FOOTER]"
         print(f"Data Link Layer Sending: {frame}")
@@ -34,6 +40,7 @@ class DataLinkLayer:
         return data
 
 class NetworkLayer:
+    #network layer with simple packet structure
     def send(self, data):
         if not isinstance(data, bytes):
             data = data.encode()
@@ -48,6 +55,7 @@ class NetworkLayer:
         return data
 
 class TransportLayer:
+    #handles segmentation
     def send(self, data):
         if not isinstance(data, bytes):
             data = data.encode()
@@ -62,6 +70,7 @@ class TransportLayer:
         return data
 
 class SessionLayer:
+    #add current active sessions
     def send(self, data):
         session_data = b"[SESSION_START]" + data + b"[SESSION_END]"
         print(f"Session Layer Sending: {session_data}")
@@ -73,6 +82,7 @@ class SessionLayer:
         return data
 
 class PresentationLayer:
+    #encode data using pickle
     def send(self, data):
         encoded_data = pickle.dumps(data)
         print(f"Presentation Layer Sending: {encoded_data}")
@@ -123,10 +133,10 @@ class OSISimulator:
         return data
 
 if __name__ == "__main__":
-    mac_address = get_mac_address()
+    mac_address = get_mac_address()  # Retrieve device MAC address
+    print(f"Using MAC Address: {mac_address}")
     message = input("Enter message to send: ")
-    print("\n\n--- Sending Data ---\n")
     osi = OSISimulator()
     transmitted_data = osi.send_data(message, mac_address)
-    print("\n\n--- Receiving Data ---\n")
+    print("\n--- Receiving Data ---\n")
     osi.receive_data(transmitted_data)
